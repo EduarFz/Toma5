@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id             Int            @id @default(autoincrement())
+  cedula         String         @unique @db.VarChar(20)
+  carnet         String         @db.VarChar(10)
+  contrasena     String         @db.VarChar(255)
+  rol            String         @db.VarChar(20)
+  activo         Boolean?       @default(true)
+  sessionToken   String?        @map("session_token") @db.VarChar(255)
+  ultimoAcceso   DateTime?      @map("ultimo_acceso") @db.Timestamp(6)
+  creadoEn       DateTime?      @default(now()) @map("creado_en") @db.Timestamp(6)
+  notificaciones Notificacion[]
+  supervisor     Supervisor?
+  trabajador     Trabajador?
+
+  @@index([cedula], map: "idx_usuarios_cedula")
+  @@index([sessionToken], map: "idx_usuarios_session_token")
+  @@map("usuarios")
+}
+
+model Supervisor {
+  id               Int       @id @default(autoincrement())
+  usuarioId        Int?      @unique @map("usuario_id")
+  nombreCompleto   String    @map("nombre_completo") @db.VarChar(100)
+  departamento     String?   @default("Manejo de Carbón") @db.VarChar(100)
+  superintendencia String?   @default("Ferrocarril") @db.VarChar(100)
+  uas              String?   @default("Equipos de Vías") @db.VarChar(100)
+  creadoEn         DateTime? @default(now()) @map("creado_en") @db.Timestamp(6)
+  usuario          Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tareas           Tarea[]
+
+  @@map("supervisores")
+}
+
+model Trabajador {
+  id               Int       @id @default(autoincrement())
+  usuarioId        Int?      @unique @map("usuario_id")
+  nombreCompleto   String    @map("nombre_completo") @db.VarChar(100)
+  cargo            String?   @default("Técnico Operador") @db.VarChar(50)
+  turno            String    @db.VarChar(20)
+  disponibleHoy    Boolean?  @default(true) @map("disponible_hoy")
+  departamento     String?   @default("Manejo de Carbón") @db.VarChar(100)
+  superintendencia String?   @default("Ferrocarril") @db.VarChar(100)
+  uas              String?   @default("Equipos de Vías") @db.VarChar(100)
+  creadoEn         DateTime? @default(now()) @map("creado_en") @db.Timestamp(6)
+  tareas           Tarea[]
+  toma5s           Toma5[]
+  usuario          Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("trabajadores")
+}
+
+model Procedimiento {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @db.VarChar(200)
+  descripcion String?
+  urlPdf      String    @map("url_pdf") @db.VarChar(500)
+  activo      Boolean?  @default(true)
+  creadoEn    DateTime? @default(now()) @map("creado_en") @db.Timestamp(6)
+  toma5s      Toma5[]
+
+  @@map("procedimientos")
+}
+
+model Tarea {
+  id                  Int            @id @default(autoincrement())
+  tareaGrupoId        String?        @map("tarea_grupo_id") @db.VarChar(50)
+  descripcion         String         @db.VarChar(200)
+  lugar               String?        @db.VarChar(100)
+  trabajadorId        Int?           @map("trabajador_id")
+  supervisorId        Int?           @map("supervisor_id")
+  creadaPorTrabajador Boolean?       @default(false) @map("creada_por_trabajador")
+  fechaTarea          DateTime       @map("fecha_tarea") @db.Date
+  estado              String         @default("PENDIENTE") @db.VarChar(30)
+  canceladaPor        String?        @map("cancelada_por") @db.VarChar(20)
+  creadaEn            DateTime?      @default(now()) @map("creada_en") @db.Timestamp(6)
+  actualizadaEn       DateTime?      @default(now()) @updatedAt @map("actualizada_en") @db.Timestamp(6)
+  notificaciones      Notificacion[]
+  supervisor          Supervisor?    @relation(fields: [supervisorId], references: [id], onUpdate: NoAction)
+  trabajador          Trabajador?    @relation(fields: [trabajadorId], references: [id], onUpdate: NoAction)
+  toma5               Toma5?
+
+  @@index([estado], map: "idx_tareas_estado")
+  @@index([fechaTarea], map: "idx_tareas_fecha")
+  @@index([tareaGrupoId], map: "idx_tareas_grupo")
+  @@index([supervisorId], map: "idx_tareas_supervisor")
+  @@index([trabajadorId], map: "idx_tareas_trabajador")
+  @@map("tareas")
+}
+
+model Toma5 {
+  id                      Int              @id @default(autoincrement())
+  tareaId                 Int?             @unique @map("tarea_id")
+  trabajadorId            Int?             @map("trabajador_id")
+  fechaDiligenciamiento   DateTime?        @default(now()) @map("fecha_diligenciamiento") @db.Timestamp(6)
+  procedimientoId         Int?             @map("procedimiento_id")
+  requiereAsst            Boolean?         @default(false) @map("requiere_asst")
+  peligrosAdicionales     String?          @map("peligros_adicionales")
+  comentarios             String?
+  aprobado                Boolean?
+  fechaRevision           DateTime?        @map("fecha_revision") @db.Timestamp(6)
+  observacionesSupervisor String?          @map("observaciones_supervisor")
+  asst                    Asst?
+  procedimiento           Procedimiento?   @relation(fields: [procedimientoId], references: [id], onUpdate: NoAction)
+  tarea                   Tarea?           @relation(fields: [tareaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  trabajador              Trabajador?      @relation(fields: [trabajadorId], references: [id], onUpdate: NoAction)
+  respuestas              Toma5Respuesta[]
+
+  @@map("toma5")
+}
+
+model Toma5Respuesta {
+  id        Int     @id @default(autoincrement())
+  toma5Id   Int?    @map("toma5_id")
+  paso      Int
+  pregunta  String  @db.VarChar(10)
+  respuesta Boolean
+  toma5     Toma5?  @relation(fields: [toma5Id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("toma5_respuestas")
+}
+
+model Asst {
+  id         Int       @id @default(autoincrement())
+  toma5Id    Int?      @unique @map("toma5_id")
+  foto1Url   String    @map("foto1_url") @db.VarChar(500)
+  foto2Url   String    @map("foto2_url") @db.VarChar(500)
+  fechaCarga DateTime? @default(now()) @map("fecha_carga") @db.Timestamp(6)
+  toma5      Toma5?    @relation(fields: [toma5Id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("asst")
+}
+
+model Notificacion {
+  id        Int       @id @default(autoincrement())
+  usuarioId Int?      @map("usuario_id")
+  tipo      String    @db.VarChar(50)
+  titulo    String    @db.VarChar(100)
+  mensaje   String
+  tareaId   Int?      @map("tarea_id")
+  leida     Boolean?  @default(false)
+  creadaEn  DateTime? @default(now()) @map("creada_en") @db.Timestamp(6)
+  tareas    Tarea?    @relation(fields: [tareaId], references: [id], onUpdate: NoAction)
+  usuario   Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([leida], map: "idx_notificaciones_leida")
+  @@index([usuarioId], map: "idx_notificaciones_usuario")
+  @@map("notificaciones")
+}
