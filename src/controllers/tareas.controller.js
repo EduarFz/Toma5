@@ -99,10 +99,14 @@ const crearTarea = async (req, res, next) => {
         },
       });
 
-           // Enviar notificación al trabajador
+      // Enviar notificación al trabajador
       const io = req.app.get('io');
-      await notificarTareaAsignada(io, trabajador, tarea, supervisor);
-
+      await notificarTareaAsignada(
+        trabajador.id,
+        tarea.id,
+        tarea.descripcion,
+        io
+      );
 
       return res.status(201).json({
         mensaje: 'Tarea creada exitosamente',
@@ -186,21 +190,21 @@ const crearTarea = async (req, res, next) => {
         },
       });
 
-      // Emitir notificaciones a ambos trabajadores
+      // Enviar notificaciones a ambos trabajadores
       const io = req.app.get('io');
-      io.to(`usuario-${trabajador1.usuarioId}`).emit('tarea-asignada', {
-        mensaje: 'Se te ha asignado una nueva tarea (trabajo en equipo)',
-        tareaId: tarea1.id,
-        descripcion: tarea1.descripcion,
-        timestamp: new Date().toISOString(),
-      });
+      await notificarTareaAsignada(
+        trabajador1.id,
+        tarea1.id,
+        tarea1.descripcion,
+        io
+      );
 
-      io.to(`usuario-${trabajador2.usuarioId}`).emit('tarea-asignada', {
-        mensaje: 'Se te ha asignado una nueva tarea (trabajo en equipo)',
-        tareaId: tarea2.id,
-        descripcion: tarea2.descripcion,
-        timestamp: new Date().toISOString(),
-      });
+      await notificarTareaAsignada(
+        trabajador2.id,
+        tarea2.id,
+        tarea2.descripcion,
+        io
+      );
 
       return res.status(201).json({
         mensaje: 'Tareas creadas exitosamente para 2 trabajadores',
@@ -230,7 +234,6 @@ const crearTarea = async (req, res, next) => {
   }
 };
 
-
 /**
  * LISTAR TAREAS
  * GET /api/tareas
@@ -244,18 +247,18 @@ const listarTareas = async (req, res, next) => {
     // Construir filtros
     const filtros = {};
 
-   // Filtro por fecha (día completo)
-if (fecha) {
-  const fechaInicio = new Date(fecha);
-  fechaInicio.setHours(0, 0, 0, 0);
-  const fechaFin = new Date(fecha);
-  fechaFin.setHours(23, 59, 59, 999);
+    // Filtro por fecha (día completo)
+    if (fecha) {
+      const fechaInicio = new Date(fecha);
+      fechaInicio.setHours(0, 0, 0, 0);
+      const fechaFin = new Date(fecha);
+      fechaFin.setHours(23, 59, 59, 999);
 
-  filtros.fechaTarea = {
-    gte: fechaInicio,
-    lte: fechaFin,
-  };
-}
+      filtros.fechaTarea = {
+        gte: fechaInicio,
+        lte: fechaFin,
+      };
+    }
 
     if (estado) {
       filtros.estado = estado;
@@ -305,21 +308,21 @@ if (fecha) {
         },
       },
       orderBy: {
-  creadaEn: 'desc',
-},
+        creadaEn: 'desc',
+      },
     });
 
     // Formatear respuesta
     const tareasFormateadas = tareas.map((t) => ({
-  id: t.id,
-  descripcion: t.descripcion,
-  lugar: t.lugar,
-  estado: t.estado,
-  fechaTarea: t.fechaTarea,
-  creadaPorTrabajador: t.creadaPorTrabajador,
-  canceladaPor: t.canceladaPor,
-  creadaEn: t.creadaEn,
-  actualizadaEn: t.actualizadaEn,
+      id: t.id,
+      descripcion: t.descripcion,
+      lugar: t.lugar,
+      estado: t.estado,
+      fechaTarea: t.fechaTarea,
+      creadaPorTrabajador: t.creadaPorTrabajador,
+      canceladaPor: t.canceladaPor,
+      creadaEn: t.creadaEn,
+      actualizadaEn: t.actualizadaEn,
       tareaGrupoId: t.tareaGrupoId,
       trabajador: {
         id: t.trabajador.id,
@@ -385,15 +388,15 @@ const obtenerTarea = async (req, res, next) => {
 
     // Formatear respuesta
     const tareaFormateada = {
-  id: tarea.id,
-  descripcion: tarea.descripcion,
-  lugar: tarea.lugar,
-  estado: tarea.estado,
-  fechaTarea: tarea.fechaTarea,
-  creadaPorTrabajador: tarea.creadaPorTrabajador,
-  canceladaPor: tarea.canceladaPor,
-  creadaEn: tarea.creadaEn,
-  actualizadaEn: tarea.actualizadaEn,
+      id: tarea.id,
+      descripcion: tarea.descripcion,
+      lugar: tarea.lugar,
+      estado: tarea.estado,
+      fechaTarea: tarea.fechaTarea,
+      creadaPorTrabajador: tarea.creadaPorTrabajador,
+      canceladaPor: tarea.canceladaPor,
+      creadaEn: tarea.creadaEn,
+      actualizadaEn: tarea.actualizadaEn,
       tareaGrupoId: tarea.tareaGrupoId,
       trabajador: {
         id: tarea.trabajador.id,
@@ -473,26 +476,29 @@ const cancelarTarea = async (req, res, next) => {
 
     // Actualizar estado
     const tareaActualizada = await prisma.tarea.update({
-  where: { id: parseInt(id) },
-  data: {
-    estado: 'CANCELADA',
-    canceladaPor: 'SUPERVISOR',
-  },
-});
+      where: { id: parseInt(id) },
+      data: {
+        estado: 'CANCELADA',
+        canceladaPor: 'SUPERVISOR',
+      },
+    });
 
-
-       // Enviar notificación al trabajador
+    // Enviar notificación al trabajador
     const io = req.app.get('io');
-    await notificarTareaCancelada(io, tarea.trabajador, tarea, motivo.trim());
-
+    await notificarTareaCancelada(
+      tarea.trabajador.id,
+      tarea.id,
+      tarea.descripcion,
+      motivo.trim(),
+      io
+    );
 
     res.json({
       mensaje: 'Tarea cancelada exitosamente',
       tarea: {
         id: tareaActualizada.id,
         estado: tareaActualizada.estado,
-        fechaCancelacion: tareaActualizada.fechaCancelacion,
-        motivoCancelacion: tareaActualizada.motivoCancelacion,
+        canceladaPor: tareaActualizada.canceladaPor,
       },
     });
   } catch (error) {

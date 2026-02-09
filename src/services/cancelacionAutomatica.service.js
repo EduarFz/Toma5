@@ -1,25 +1,26 @@
 const cron = require('node-cron');
 const prisma = require('../config/database');
+const { notificarTareaCancelada } = require('./notificaciones.service');
 
 /**
- * SERVICIO DE CANCELACIÓN AUTOMÁTICA DE TAREAS
- * Cancela automáticamente todas las tareas PENDIENTES a las 00:00 GMT-5
+ * Cancelar automáticamente tareas PENDIENTES que pasaron su fecha
+ * Se ejecuta a la medianoche de cada día
  */
-
-let cronJobActivo = null;
-
-/**
- * Función que ejecuta la cancelación automática
- */
-const ejecutarCancelacionAutomatica = async () => {
+const cancelarTareasPendientes = async (io) => {
   try {
-    console.log('\n🕐 [CRON] Ejecutando cancelación automática de tareas...');
-    console.log(`📅 Fecha: ${new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`);
+    console.log('[CRON] Iniciando verificación de tareas pendientes...');
 
-    // Buscar todas las tareas en estado PENDIENTE
+    // Obtener fecha de hoy a medianoche
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    // Buscar tareas PENDIENTES cuya fecha ya pasó
     const tareasPendientes = await prisma.tarea.findMany({
       where: {
         estado: 'PENDIENTE',
+        fechaTarea: {
+          lt: hoy, // Menor que hoy (fechas pasadas)
+        },
       },
       include: {
         trabajador: {
@@ -27,124 +28,73 @@ const ejecutarCancelacionAutomatica = async () => {
             usuario: true,
           },
         },
-        supervisor: true,
       },
     });
 
-    if (tareasPendientes.length === 0) {
-      console.log('✅ [CRON] No hay tareas pendientes para cancelar');
-      return { canceladas: 0, mensaje: 'No hay tareas pendientes' };
+    console.log(`[CRON] Se encontraron ${tareasPendientes.length} tareas pendientes vencidas`);
+
+    // Cancelar cada tarea
+    let tareasActualizadas = 0;
+
+    for (const tarea of tareasPendientes) {
+      await prisma.tarea.update({
+        where: { id: tarea.id },
+        data: {
+          estado: 'CANCELADA',
+          canceladaPor: null, // NULL para cancelación automática
+        },
+      });
+
+      // Notificar al trabajador
+      if (tarea.trabajadorId && tarea.trabajador) {
+        await notificarTareaCancelada(
+          tarea.trabajadorId,
+          tarea.id,
+          tarea.descripcion,
+          'Tarea no completada en la fecha asignada (cancelación automática)',
+          io
+        );
+      }
+
+      tareasActualizadas++;
     }
 
-    console.log(`📋 [CRON] Se encontraron ${tareasPendientes.length} tareas pendientes`);
+    console.log(`[CRON] ${tareasActualizadas} tareas canceladas automáticamente`);
 
-    // Actualizar todas las tareas pendientes a CANCELADA
-    const resultado = await prisma.tarea.updateMany({
-      where: {
-        estado: 'PENDIENTE',
-      },
-      data: {
-        estado: 'CANCELADA',
-        fechaCancelacion: new Date(),
-        motivoCancelacion: 'Cancelación automática por fin del día sin completar',
-      },
-    });
-
-    console.log(`✅ [CRON] ${resultado.count} tareas canceladas automáticamente`);
-
-    // Registrar en base de datos las notificaciones para cada trabajador
-    // (opcional: podrías guardar un log de estas cancelaciones)
-    
     return {
-      canceladas: resultado.count,
-      mensaje: `${resultado.count} tareas canceladas exitosamente`,
-      tareas: tareasPendientes.map(t => ({
-        id: t.id,
-        trabajador: t.trabajador.nombreCompleto,
-        descripcion: t.descripcion,
-      })),
+      tareasEncontradas: tareasPendientes.length,
+      tareasCanceladas: tareasActualizadas,
+      fecha: new Date().toISOString(),
     };
-
   } catch (error) {
-    console.error('❌ [CRON] Error en cancelación automática:', error);
+    console.error('[CRON] Error al cancelar tareas pendientes:', error);
     throw error;
   }
 };
 
 /**
- * Iniciar el cron job
- * Se ejecuta todos los días a las 00:00 GMT-5 (medianoche hora Colombia)
- * Formato: segundo minuto hora día mes día-semana
- * '0 0 0 * * *' = todos los días a las 00:00:00
+ * Iniciar el cron job que se ejecuta a medianoche
  */
 const iniciarCronJob = (io) => {
-  if (cronJobActivo) {
-    console.log('⚠️  [CRON] El cron job ya está activo');
-    return;
-  }
+  // Ejecutar a medianoche (00:00) de cada día
+  cron.schedule('0 0 * * *', async () => {
+    console.log('[CRON] Ejecutando cancelación automática de tareas...');
+    await cancelarTareasPendientes(io);
+  });
 
-  // Programar ejecución diaria a las 00:00 GMT-5
-  cronJobActivo = cron.schedule(
-    '0 0 0 * * *',
-    async () => {
-      try {
-        const resultado = await ejecutarCancelacionAutomatica();
-        
-        // Emitir notificación a través de Socket.io si hay tareas canceladas
-        if (resultado.canceladas > 0 && io) {
-          io.emit('cancelacion-automatica', {
-            mensaje: `${resultado.canceladas} tareas fueron canceladas automáticamente`,
-            cantidad: resultado.canceladas,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      } catch (error) {
-        console.error('❌ [CRON] Error ejecutando cron job:', error);
-      }
-    },
-    {
-      scheduled: true,
-      timezone: 'America/Bogota', // GMT-5 (hora Colombia)
-    }
-  );
-
-  console.log('✅ [CRON] Cron job de cancelación automática iniciado');
-  console.log('⏰ [CRON] Se ejecutará todos los días a las 00:00 GMT-5');
+  console.log('✅ Cron job de cancelación automática iniciado (00:00 diario)');
 };
 
 /**
- * Detener el cron job
- */
-const detenerCronJob = () => {
-  if (cronJobActivo) {
-    cronJobActivo.stop();
-    cronJobActivo = null;
-    console.log('🛑 [CRON] Cron job detenido');
-  }
-};
-
-/**
- * FUNCIÓN MANUAL para probar la cancelación (útil para desarrollo)
- * NO se ejecuta automáticamente, solo para pruebas
+ * Función manual para pruebas (solo desarrollo)
+ * Permite ejecutar la cancelación manualmente sin esperar a medianoche
  */
 const cancelacionManualParaPruebas = async (io) => {
-  console.log('🧪 [PRUEBA] Ejecutando cancelación manual...');
-  const resultado = await ejecutarCancelacionAutomatica();
-  
-  if (resultado.canceladas > 0 && io) {
-    io.emit('cancelacion-automatica', {
-      mensaje: `${resultado.canceladas} tareas canceladas (prueba manual)`,
-      cantidad: resultado.canceladas,
-      timestamp: new Date().toISOString(),
-    });
-  }
-  
-  return resultado;
+  console.log('[MANUAL] Ejecutando cancelación manual para pruebas...');
+  return await cancelarTareasPendientes(io);
 };
 
 module.exports = {
   iniciarCronJob,
-  detenerCronJob,
   cancelacionManualParaPruebas,
-  ejecutarCancelacionAutomatica,
 };

@@ -1,20 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const devController = require('../controllers/dev.controller');
-const { verificarToken, verificarRoles } = require('../middleware/auth.middleware');
+const { ejecutarCancelacionManual } = require('../controllers/dev.controller');
+const { verificarToken } = require('../middleware/auth.middleware');
 
 /**
- * RUTAS DE DESARROLLO (solo para pruebas)
- * Eliminar en producción
+ * RUTA DE DESARROLLO - Cancelación manual de tareas
+ * POST /api/dev/cancelar-tareas
+ * Solo para pruebas - ejecuta el cron job manualmente
  */
-
-// POST /api/dev/cancelar-tareas-manual
-// Solo ADMINISTRADOR o SUPERVISOR
-router.post(
-  '/cancelar-tareas-manual',
-  verificarToken,
-  verificarRoles(['ADMINISTRADOR', 'SUPERVISOR']),
-  devController.ejecutarCancelacionManual
-);
+router.post('/cancelar-tareas', verificarToken, ejecutarCancelacionManual);
 
 module.exports = router;
