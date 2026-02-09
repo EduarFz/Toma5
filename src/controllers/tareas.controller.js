@@ -1,7 +1,6 @@
+const bcrypt = require('bcrypt');
 const prisma = require('../config/database');
-
 const { notificarTareaAsignada, notificarTareaCancelada } = require('../services/notificaciones.service');
-
 
 /**
  * CREAR NUEVA TAREA
@@ -100,14 +99,10 @@ const crearTarea = async (req, res, next) => {
         },
       });
 
-      // Emitir notificación al trabajador
+           // Enviar notificación al trabajador
       const io = req.app.get('io');
-      io.to(`usuario-${trabajador.usuarioId}`).emit('tarea-asignada', {
-        mensaje: 'Se te ha asignado una nueva tarea',
-        tareaId: tarea.id,
-        descripcion: tarea.descripcion,
-        timestamp: new Date().toISOString(),
-      });
+      await notificarTareaAsignada(io, trabajador, tarea, supervisor);
+
 
       return res.status(201).json({
         mensaje: 'Tarea creada exitosamente',
@@ -486,14 +481,10 @@ const cancelarTarea = async (req, res, next) => {
 });
 
 
-    // Emitir notificación al trabajador
+       // Enviar notificación al trabajador
     const io = req.app.get('io');
-    io.to(`usuario-${tarea.trabajador.usuarioId}`).emit('tarea-cancelada', {
-      mensaje: 'Una de tus tareas ha sido cancelada por el supervisor',
-      tareaId: tarea.id,
-      motivo: motivo.trim(),
-      timestamp: new Date().toISOString(),
-    });
+    await notificarTareaCancelada(io, tarea.trabajador, tarea, motivo.trim());
+
 
     res.json({
       mensaje: 'Tarea cancelada exitosamente',

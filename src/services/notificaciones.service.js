@@ -55,7 +55,7 @@ const enviarNotificacion = async (io, usuarioId, tipo, titulo, mensaje, datos = 
           titulo,
           mensaje,
           datos: JSON.stringify(datos),
-          leido: false,
+          leida: false,
         },
       });
       console.log(`💾 [NOTIF] Persistida en BD para usuario ${usuarioId}`);
@@ -133,8 +133,8 @@ const marcarComoLeida = async (notificacionId) => {
     await prisma.notificacion.update({
       where: { id: notificacionId },
       data: { 
-        leido: true,
-        fechaLeido: new Date(),
+        leida: true,
+        fechaleida: new Date(),
       },
     });
     console.log(`✅ [NOTIF] Notificación ${notificacionId} marcada como leída`);
@@ -153,11 +153,11 @@ const marcarTodasComoLeidas = async (usuarioId) => {
     const resultado = await prisma.notificacion.updateMany({
       where: { 
         usuarioId,
-        leido: false,
+        leida: false,
       },
       data: { 
-        leido: true,
-        fechaLeido: new Date(),
+        leida: true,
+        fechaleida: new Date(),
       },
     });
     console.log(`✅ [NOTIF] ${resultado.count} notificaciones marcadas como leídas para usuario ${usuarioId}`);
@@ -179,13 +179,13 @@ const obtenerNotificaciones = async (usuarioId, limite = 20, pagina = 1, soloNoL
   try {
     const where = {
       usuarioId,
-      ...(soloNoLeidas && { leido: false }),
+      ...(soloNoLeidas && { leida: false }),
     };
 
     const [notificaciones, total] = await Promise.all([
       prisma.notificacion.findMany({
         where,
-        orderBy: { fechaCreacion: 'desc' },
+        orderBy: { creadaEn: 'desc' },
         take: limite,
         skip: (pagina - 1) * limite,
       }),
@@ -198,7 +198,7 @@ const obtenerNotificaciones = async (usuarioId, limite = 20, pagina = 1, soloNoL
       pagina,
       totalPaginas: Math.ceil(total / limite),
       noLeidas: await prisma.notificacion.count({
-        where: { usuarioId, leido: false },
+        where: { usuarioId, leida: false },
       }),
     };
   } catch (error) {
@@ -218,10 +218,10 @@ const limpiarNotificacionesAntiguas = async () => {
 
     const resultado = await prisma.notificacion.deleteMany({
       where: {
-        fechaCreacion: {
-          lt: hace30Dias,
-        },
-        leido: true, // Solo eliminar las leídas
+  creadaEn: {
+    lt: hace30Dias,
+  },
+        leida: true, // Solo eliminar las leídas
       },
     });
 
