@@ -119,6 +119,10 @@ io.on('connection', (socket) => {
     console.log(`Cliente desconectado: ${socket.id}`);
   });
 });
+//temporal
+
+//temporal
+
 
 // ============================================
 // INICIAR SERVIDOR

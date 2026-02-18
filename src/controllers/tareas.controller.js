@@ -44,9 +44,10 @@ const crearTarea = async (req, res, next) => {
       creadaPorTrabajador = true;
     }
 
-    // Fecha de la tarea (hoy)
-    const fechaTarea = new Date();
-    fechaTarea.setHours(0, 0, 0, 0); // Normalizar a medianoche
+// Fecha de la tarea: hoy
+const fechaTarea = new Date();
+fechaTarea.setHours(0, 0, 0, 0);
+
 
     // CASO 1: Tarea para 1 solo trabajador
     if (trabajadorId) {
@@ -78,7 +79,8 @@ const crearTarea = async (req, res, next) => {
           estado: 'PENDIENTE',
           supervisorId: idSupervisor,
           trabajadorId: trabajadorId,
-          fechaTarea: fechaTarea,
+          /* fechaTarea: fechaTarea, */
+          fechaTarea: new Date(req.body.fechaTarea + 'T00:00:00'),
           creadaPorTrabajador: creadaPorTrabajador,
         },
         include: {
@@ -371,11 +373,16 @@ const obtenerTarea = async (req, res, next) => {
             },
           },
         },
-        toma5: {
-          include: {
-            procedimiento: true,
-          },
-        },
+       toma5: {
+  include: {
+    procedimiento: true,
+    asst: true,
+    respuestas: {
+      orderBy: { paso: 'asc' }
+    },
+  },
+},
+
       },
     });
 
@@ -410,14 +417,27 @@ const obtenerTarea = async (req, res, next) => {
         cedula: tarea.supervisor.usuario.cedula,
       } : null,
       toma5: tarea.toma5 ? {
-        id: tarea.toma5.id,
-        estado: tarea.toma5.estado,
-        requiereAsst: tarea.toma5.requiereAsst,
-        procedimiento: tarea.toma5.procedimiento ? {
-          id: tarea.toma5.procedimiento.id,
-          nombre: tarea.toma5.procedimiento.nombre,
-        } : null,
-      } : null,
+  id: tarea.toma5.id,
+  aprobado: tarea.toma5.aprobado ?? null,
+  requiereAsst: tarea.toma5.requiereAsst,
+  peligrosAdicionales: tarea.toma5.peligrosAdicionales,
+  comentarios: tarea.toma5.comentarios,
+  observacionesSupervisor: tarea.toma5.observacionesSupervisor,
+  fechaDiligenciamiento: tarea.toma5.fechaDiligenciamiento,
+  fechaRevision: tarea.toma5.fechaRevision,
+  procedimiento: tarea.toma5.procedimiento ? {
+    id: tarea.toma5.procedimiento.id,
+    nombre: tarea.toma5.procedimiento.nombre,
+  } : null,
+  asst: tarea.toma5.asst ? {
+    id: tarea.toma5.asst.id,
+    foto1Url: tarea.toma5.asst.foto1Url,
+    foto2Url: tarea.toma5.asst.foto2Url,
+    fechaCarga: tarea.toma5.asst.fechaCarga,
+  } : null,
+   respuestas: tarea.toma5.respuestas || [],   // ← LÍNEA NUEVA
+} : null,
+
     };
 
     res.json({
