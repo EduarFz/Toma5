@@ -50,7 +50,15 @@ const notificarTareaAsignada = async (trabajadorId, tareaId, descripcionTarea, i
   try {
     const trabajador = await prisma.trabajador.findUnique({
       where: { id: trabajadorId },
+      select: { expoPushToken: true, usuario: { select: { id: true } } },
     });
+
+    await enviarPushExpo(
+    trabajador?.expoPushToken,
+    'Nueva tarea asignada',
+    descripcion,
+    tareaId
+  );
 
     if (!trabajador) {
       throw new Error('Trabajador no encontrado');
@@ -68,6 +76,8 @@ const notificarTareaAsignada = async (trabajadorId, tareaId, descripcionTarea, i
     console.error('Error al notificar tarea asignada:', error);
     throw error;
   }
+  
+
 };
 
 /**
@@ -77,8 +87,14 @@ const notificarTareaCancelada = async (trabajadorId, tareaId, descripcionTarea, 
   try {
     const trabajador = await prisma.trabajador.findUnique({
       where: { id: trabajadorId },
-    });
-
+     select: { expoPushToken: true, usuario: { select: { id: true } } },
+  });
+  await enviarPushExpo(
+    trabajador?.expoPushToken,
+    'Nueva tarea asignada',
+    descripcion,
+    tareaId
+  );
     if (!trabajador) {
       throw new Error('Trabajador no encontrado');
     }
@@ -169,6 +185,32 @@ const marcarTodasComoLeidas = async (usuarioId) => {
     throw error;
   }
 };
+
+// Enviar notificación push a un trabajador via Expo Push API
+const enviarPushExpo = async (expoPushToken, titulo, cuerpo, tareaId) => {
+  if (!expoPushToken) return; // Si no tiene token registrado, omitir silenciosamente
+
+  try {
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: expoPushToken,
+        sound: 'default',
+        title: titulo,
+        body: cuerpo,
+        data: { tareaId }, // deep link: la app recibe esto al tocar la notificación
+      }),
+    });
+  } catch (error) {
+    console.error('Error al enviar push Expo:', error);
+    // No lanzar error: si falla la push, el flujo principal no debe romperse
+  }
+};
+
 
 module.exports = {
   enviarNotificacion,

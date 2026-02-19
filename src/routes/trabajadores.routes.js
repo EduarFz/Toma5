@@ -32,4 +32,8 @@ router.put(
   trabajadoresController.cambiarDisponibilidad
 );
 
+// Guardar token push del dispositivo
+router.put('/push-token', verificarToken, trabajadoresController.guardarPushToken);
+
+
 module.exports = router;

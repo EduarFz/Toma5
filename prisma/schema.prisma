@@ -50,6 +50,7 @@ model Trabajador {
   departamento     String?   @default("Manejo de Carbón") @db.VarChar(100)
   superintendencia String?   @default("Ferrocarril") @db.VarChar(100)
   uas              String?   @default("Equipos de Vías") @db.VarChar(100)
+  expoPushToken     String?   @map("expopushtoken") @db.VarChar(500)
   creadoEn         DateTime? @default(now()) @map("creado_en") @db.Timestamp(6)
   tareas           Tarea[]
   toma5s           Toma5[]

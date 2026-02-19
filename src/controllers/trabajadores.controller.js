@@ -206,8 +206,47 @@ const cambiarDisponibilidad = async (req, res, next) => {
   }
 };
 
+// Guardar expoPushToken del trabajador autenticado
+// PUT /api/trabajadores/push-token
+// Body: { token }
+const guardarPushToken = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    const usuarioActual = req.usuario;
+
+    if (!token) {
+      return res.status(400).json({
+        error: 'Datos incompletos',
+        mensaje: 'Se requiere el token',
+      });
+    }
+
+    const trabajador = await prisma.trabajador.findUnique({
+      where: { usuarioId: usuarioActual.id },
+    });
+
+    if (!trabajador) {
+      return res.status(404).json({
+        error: 'No encontrado',
+        mensaje: 'Trabajador no encontrado',
+      });
+    }
+
+    await prisma.trabajador.update({
+      where: { id: trabajador.id },
+      data: { expoPushToken: token },
+    });
+
+    res.json({ mensaje: 'Token push guardado correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 module.exports = {
   listarTrabajadores,
   obtenerTrabajador,
   cambiarDisponibilidad,
+  guardarPushToken,
 };

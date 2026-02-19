@@ -101,14 +101,34 @@ fechaTarea.setHours(0, 0, 0, 0);
         },
       });
 
-      // Enviar notificación al trabajador
       const io = req.app.get('io');
-      await notificarTareaAsignada(
-        trabajador.id,
-        tarea.id,
-        tarea.descripcion,
-        io
-      );
+
+// Notificar al trabajador que se le asignó/creó la tarea
+await notificarTareaAsignada(trabajador.id, tarea.id, tarea.descripcion, io);
+
+// Si la creó el trabajador, notificar a TODOS los supervisores en tiempo real
+if (creadaPorTrabajador) {
+  const supervisores = await prisma.supervisor.findMany({
+    include: { usuario: true },
+  });
+
+  for (const supervisor of supervisores) {
+    const notificacion = await prisma.notificacion.create({
+      data: {
+        usuarioId: supervisor.usuarioId,
+        tipo: 'NUEVA_TAREA',
+        titulo: 'Nueva tarea creada por trabajador',
+        mensaje: `${trabajador.nombreCompleto} ha creado una nueva tarea: ${descripcion.trim()}`,
+        tareaId: tarea.id,
+        leida: false,
+      },
+    });
+
+    io.to(`usuario-${supervisor.usuarioId}`).emit('nueva-notificacion', {
+      notificacion,
+    });
+  }
+}
 
       return res.status(201).json({
         mensaje: 'Tarea creada exitosamente',
@@ -282,13 +302,15 @@ const listarTareas = async (req, res, next) => {
       filtros.trabajadorId = trabajador.id;
     }
 
-    // Si es supervisor, solo ver tareas que supervisó
-    if (usuarioActual.rol === 'SUPERVISOR') {
-      const supervisor = await prisma.supervisor.findUnique({
-        where: { usuarioId: usuarioActual.id },
-      });
-      filtros.supervisorId = supervisor.id;
-    }
+    // Si es supervisor, ver sus tareas asignadas Y las creadas por trabajadores
+if (usuarioActual.rol === 'SUPERVISOR') {
+  const supervisor = await prisma.supervisor.findUnique({ where: { usuarioId: usuarioActual.id } });
+  filtros.OR = [
+    { supervisorId: supervisor.id },
+    { creadaPorTrabajador: true },
+  ];
+}
+
 
     // Buscar tareas
     const tareas = await prisma.tarea.findMany({

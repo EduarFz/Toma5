@@ -21,8 +21,11 @@ const io = new Server(server, {
 
 // Middleware global
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Aumentar límite de tamaño para permitir imágenes base64
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 
 // Hacer io accesible desde las rutas
 app.set('io', io);

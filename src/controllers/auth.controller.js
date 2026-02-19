@@ -79,6 +79,7 @@ const login = async (req, res, next) => {
       datosUsuario.superintendencia = usuario.supervisor.superintendencia;
       datosUsuario.uas = usuario.supervisor.uas;
     } else if (usuario.rol === 'TRABAJADOR' && usuario.trabajador) {
+      datosUsuario.trabajadorId = usuario.trabajador.id; // ← AGREGAR
       datosUsuario.nombreCompleto = usuario.trabajador.nombreCompleto;
       datosUsuario.cargo = usuario.trabajador.cargo;
       datosUsuario.turno = usuario.trabajador.turno;
@@ -227,6 +228,7 @@ const obtenerPerfil = async (req, res, next) => {
       datosUsuario.superintendencia = usuario.supervisor.superintendencia;
       datosUsuario.uas = usuario.supervisor.uas;
     } else if (usuario.rol === 'TRABAJADOR' && usuario.trabajador) {
+      datosUsuario.trabajadorId = usuario.trabajador.id; // ← AGREGAR
       datosUsuario.nombreCompleto = usuario.trabajador.nombreCompleto;
       datosUsuario.cargo = usuario.trabajador.cargo;
       datosUsuario.turno = usuario.trabajador.turno;
