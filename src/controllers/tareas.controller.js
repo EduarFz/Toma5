@@ -548,9 +548,57 @@ const cancelarTarea = async (req, res, next) => {
   }
 };
 
+// HISTORIAL DE TAREAS DEL TRABAJADOR
+// GET /api/tareas/historial
+const obtenerHistorialTrabajador = async (req, res, next) => {
+  try {
+    const usuarioActual = req.usuario;
+
+    // Buscar el trabajador
+    const trabajador = await prisma.trabajador.findUnique({
+      where: { usuarioId: usuarioActual.id },
+    });
+
+    if (!trabajador) {
+      return res.status(404).json({
+        error: 'No encontrado',
+        mensaje: 'Trabajador no encontrado',
+      });
+    }
+
+    // Obtener TODAS las tareas del trabajador (sin filtro de fecha)
+    const tareas = await prisma.tarea.findMany({
+      where: { trabajadorId: trabajador.id },
+      include: {
+        supervisor: {
+          select: { nombreCompleto: true },
+        },
+        toma5: {
+          select: {
+            aprobado: true,
+            requiereAsst: true,
+            procedimiento: { select: { nombre: true } },
+          },
+        },
+      },
+      orderBy: { fechaTarea: 'desc' }, // Más recientes primero
+    });
+
+    res.json({
+      total: tareas.length,
+      tareas,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
 module.exports = {
   crearTarea,
   listarTareas,
   obtenerTarea,
   cancelarTarea,
+  obtenerHistorialTrabajador,
 };

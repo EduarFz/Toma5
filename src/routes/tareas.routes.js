@@ -25,6 +25,9 @@ router.get(
   tareasController.listarTareas
 );
 
+// IMPORTANTE: esta ruta debe ir ANTES de /:id
+router.get('/historial', verificarToken, tareasController.obtenerHistorialTrabajador);
+
 // GET /api/tareas/:id - Obtener tarea por ID
 router.get(
   '/:id',
