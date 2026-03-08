@@ -1,30 +1,23 @@
 const cloudinary = require('cloudinary').v2;
 
-// Configurar Cloudinary con las credenciales del .env
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-/**
- * Subir imagen a Cloudinary
- * @param {string} base64Image - Imagen en formato base64
- * @param {string} folder - Carpeta donde guardar la imagen
- * @returns {Promise<Object>} - Objeto con la URL de la imagen
- */
-const subirImagen = async (base64Image, folder = 'toma5/asst') => {
+// Subir imagen a Cloudinary (uso actual: ASST)
+const subirImagen = async (base64Image, folder = 'toma5asst') => {
   try {
     const resultado = await cloudinary.uploader.upload(base64Image, {
       folder: folder,
       resource_type: 'image',
       format: 'jpg',
       transformation: [
-        { width: 1200, height: 1200, crop: 'limit' }, // Limitar tamaño máximo
-        { quality: 'auto' }, // Optimizar calidad automáticamente
+        { width: 1200, height: 1200, crop: 'limit' },
+        { quality: 'auto' },
       ],
     });
-
     return {
       url: resultado.secure_url,
       publicId: resultado.public_id,
@@ -35,23 +28,36 @@ const subirImagen = async (base64Image, folder = 'toma5/asst') => {
   }
 };
 
-/**
- * Eliminar imagen de Cloudinary
- * @param {string} publicId - ID público de la imagen
- * @returns {Promise<Object>} - Resultado de la eliminación
- */
-const eliminarImagen = async (publicId) => {
+// Subir PDF a Cloudinary (uso: procedimientos)
+const subirPdf = async (base64Pdf, nombreArchivo) => {
   try {
-    const resultado = await cloudinary.uploader.destroy(publicId);
-    return resultado;
+    const resultado = await cloudinary.uploader.upload(base64Pdf, {
+      folder: 'toma5procedimientos',
+      resource_type: 'raw',
+      public_id: nombreArchivo,
+      format: 'pdf',
+    });
+    return {
+      url: resultado.secure_url,
+      publicId: resultado.public_id,
+    };
   } catch (error) {
-    console.error('Error al eliminar imagen de Cloudinary:', error);
-    throw new Error('Error al eliminar la imagen');
+    console.error('Error al subir PDF a Cloudinary:', error);
+    throw new Error('Error al subir el PDF');
   }
 };
 
-module.exports = {
-  subirImagen,
-  eliminarImagen,
-  cloudinary,
+// Eliminar archivo de Cloudinary
+const eliminarArchivo = async (publicId, resourceType = 'image') => {
+  try {
+    const resultado = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
+    return resultado;
+  } catch (error) {
+    console.error('Error al eliminar archivo de Cloudinary:', error);
+    throw new Error('Error al eliminar el archivo');
+  }
 };
+
+module.exports = { subirImagen, subirPdf, eliminarArchivo, cloudinary };

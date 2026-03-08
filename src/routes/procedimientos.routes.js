@@ -1,32 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const procedimientosController = require('../controllers/procedimientos.controller');
+const {
+  listarProcedimientos,
+  obtenerProcedimiento,
+  listarProcedimientosActivos,
+  crearProcedimiento,
+  cambiarEstadoProcedimiento,
+} = require('../controllers/procedimientos.controller');
 const { verificarToken } = require('../middleware/auth.middleware');
 
-/**
- * Todas las rutas requieren autenticación
- */
+// Todas las rutas requieren autenticación
+router.use(verificarToken);
 
-// GET /api/procedimientos/activos - Listar solo procedimientos activos
-// Esta ruta debe ir ANTES de /:id para que no la capture
-router.get(
-  '/activos',
-  verificarToken,
-  procedimientosController.listarProcedimientosActivos
-);
+// GET /api/procedimientos/activos  ← debe ir ANTES de /:id
+router.get('/activos', listarProcedimientosActivos);
 
-// GET /api/procedimientos - Listar todos los procedimientos
-router.get(
-  '/',
-  verificarToken,
-  procedimientosController.listarProcedimientos
-);
+// GET /api/procedimientos
+router.get('/', listarProcedimientos);
 
-// GET /api/procedimientos/:id - Obtener procedimiento por ID
-router.get(
-  '/:id',
-  verificarToken,
-  procedimientosController.obtenerProcedimiento
-);
+// GET /api/procedimientos/:id
+router.get('/:id', obtenerProcedimiento);
+
+// POST /api/procedimientos  (solo ADMINISTRADOR)
+router.post('/', crearProcedimiento);
+
+// PATCH /api/procedimientos/:id/estado  (solo ADMINISTRADOR)
+router.patch('/:id/estado', cambiarEstadoProcedimiento);
 
 module.exports = router;
