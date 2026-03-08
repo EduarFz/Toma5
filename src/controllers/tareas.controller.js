@@ -448,9 +448,11 @@ const obtenerTarea = async (req, res, next) => {
   fechaDiligenciamiento: tarea.toma5.fechaDiligenciamiento,
   fechaRevision: tarea.toma5.fechaRevision,
   procedimiento: tarea.toma5.procedimiento ? {
-    id: tarea.toma5.procedimiento.id,
-    nombre: tarea.toma5.procedimiento.nombre,
-  } : null,
+  id: tarea.toma5.procedimiento.id,
+  nombre: tarea.toma5.procedimiento.nombre,
+  urlPdf: tarea.toma5.procedimiento.urlPdf,
+} : null,
+
   asst: tarea.toma5.asst ? {
     id: tarea.toma5.asst.id,
     foto1Url: tarea.toma5.asst.foto1Url,

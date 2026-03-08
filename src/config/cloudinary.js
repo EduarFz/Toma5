@@ -36,9 +36,14 @@ const subirPdf = async (base64Pdf, nombreArchivo) => {
       resource_type: 'raw',
       public_id: nombreArchivo,
       format: 'pdf',
+      type: 'upload',
     });
+
+    // Construir URL de descarga directa pública
+    const urlPublica = resultado.secure_url.replace('/raw/upload/', '/raw/upload/fl_attachment/');
+
     return {
-      url: resultado.secure_url,
+      url: urlPublica,
       publicId: resultado.public_id,
     };
   } catch (error) {
@@ -46,6 +51,7 @@ const subirPdf = async (base64Pdf, nombreArchivo) => {
     throw new Error('Error al subir el PDF');
   }
 };
+
 
 // Eliminar archivo de Cloudinary
 const eliminarArchivo = async (publicId, resourceType = 'image') => {
