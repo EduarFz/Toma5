@@ -22,7 +22,7 @@ API REST del sistema digitalizado del formulario Toma 5 · UAS Equipos de Vías,
 ## Instalación
 
 ```bash
-git clone <url-repositorio>
+git clone https://github.com/EduarFz/Toma5
 cd toma5-backend
 npm install
 ```
